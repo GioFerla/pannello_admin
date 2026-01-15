@@ -1,0 +1,54 @@
+[
+  {
+    "id": 1,
+    "name": "La notte bianca della lettura",
+    "description": "Tradizionale notte bianca con letture pubbliche, workshop e musica dal vivo.",
+    "scope": "Arte e Cultura",
+    "startDateTime": "2025-07-19T14:30:00",
+    "endDateTime": "2025-07-19T16:30:00",
+    "issueDateTime": "2025-08-05T14:52:22",
+    "mediaResource": {
+      "uri": "https://www.example.com/image.png"
+    },
+    "venue": {
+      "id": 1,
+      "name": "ITSOS Marie Curie",
+      "address": {
+        "street": "Via Masaccio 4",
+        "city": "Cernusco sul Naviglio",
+        "province": "MI",
+        "zipcode": "20063"
+      }
+    },
+    "contact": {
+      "email": "example@email.it",
+      "phone": "02123456789"
+    }
+  },
+  {
+    "id": 2,
+    "name": "Forum delle Politiche Giovanili",
+    "description": "Giornata di confronto su politiche giovanili, startup sociali e volontariato.",
+    "scope": "Formazione",
+    "startDateTime": "2025-09-12T09:00:00",
+    "endDateTime": "2025-09-12T17:00:00",
+    "issueDateTime": "2025-05-20T10:15:00",
+    "mediaResource": {
+      "uri": "https://www.example.com/forum.png"
+    },
+    "venue": {
+      "id": 2,
+      "name": "Auditorium Comunale",
+      "address": {
+        "street": "Piazza Centrale 1",
+        "city": "Milano",
+        "province": "MI",
+        "zipcode": "20100"
+      }
+    },
+    "contact": {
+      "email": "contatti@forum.it",
+      "phone": "+390212345678"
+    }
+  }
+]
