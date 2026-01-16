@@ -138,7 +138,8 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
         }
         // Validate date format
         $dt = DateTime::createFromFormat('Y-m-d', $giorno);
-        if (!$dt || $dt->format('Y-m-d') !== $giorno) {
+        $lastErrors = DateTime::getLastErrors();
+        if (!$dt || $dt->format('Y-m-d') !== $giorno || ($lastErrors && ($lastErrors['warning_count'] > 0 || $lastErrors['error_count'] > 0))) {
             $errors[] = 'Formato data non valido per il giorno. Usare YYYY-MM-DD.';
             continue;
         }
