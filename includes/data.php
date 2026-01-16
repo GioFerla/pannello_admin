@@ -75,7 +75,7 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
         }
     }
     if (strlen($via) > 255) {
-        $errors[] = 'L\'indirizzo della sede non può superare i 255 caratteri.';
+        $errors[] = "L'indirizzo della sede non può superare i 255 caratteri.";
     }
     if ($cap !== '' && !preg_match('/^\d{5}$/', $cap)) {
         $errors[] = 'Il CAP deve essere composto da 5 cifre.';
@@ -138,8 +138,12 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
         }
         // Validate date format
         $dt = DateTime::createFromFormat('Y-m-d', $giorno);
+        if (!$dt || $dt->format('Y-m-d') !== $giorno) {
+            $errors[] = 'Formato data non valido per il giorno. Usare YYYY-MM-DD.';
+            continue;
+        }
         $lastErrors = DateTime::getLastErrors();
-        if (!$dt || $dt->format('Y-m-d') !== $giorno || ($lastErrors && ($lastErrors['warning_count'] > 0 || $lastErrors['error_count'] > 0))) {
+        if ($lastErrors && ($lastErrors['warning_count'] > 0 || $lastErrors['error_count'] > 0)) {
             $errors[] = 'Formato data non valido per il giorno. Usare YYYY-MM-DD.';
             continue;
         }
