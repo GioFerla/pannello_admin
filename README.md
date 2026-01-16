@@ -11,6 +11,7 @@ Applicazione full‑stack PHP + Apache con frontend Tailwind CSS e database Mari
 - [Variabili d'ambiente principali](#variabili-dambiente-principali)
 - [Note](#note)
 - [Panoramica — Eliminazione Eventi](#panoramica---eliminazione-eventi)
+- [Panoramica — Modifica Evento](#panoramica---modifica-evento)
 - [Panoramica del Form di Creazione Eventi](#panoramica-del-form-di-creazione-eventi)
   - [Dipendenze](#dipendenze)
   - [Flusso di funzionamento](#flusso-di-funzionamento)
@@ -105,8 +106,6 @@ Funzioni esterne utilizzate:
 require_login();
 ```
 
-Verifica che l'utente sia loggato. Se non autenticato, l'utente viene reindirizzato (gestito internamente da `require_login()`).
-
 2. Validazione metodo HTTP
 
 ```php
@@ -115,8 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 ```
-
-Scopo: prevenire accessi diretti via GET o altri metodi HTTP. Se la richiesta non è POST, l'utente viene reindirizzato alla dashboard amministrativa.
 
 3. Recupero e validazione ID
 
@@ -129,11 +126,6 @@ if ($id === '') {
 }
 ```
 
-Validazione:
-- Verifica la presenza del parametro `id` nei dati POST
-- Converte l'ID in stringa
-- Se l'ID è vuoto, mostra un messaggio di errore e reindirizza
-
 4. Eliminazione evento
 
 ```php
@@ -144,19 +136,12 @@ if (delete_event_record($id)) {
 }
 ```
 
-Logica:
-- Chiama `delete_event_record($id)` per eliminare l'evento
-- Successo: mostra messaggio di conferma
-- Fallimento: mostra messaggio di errore (evento non esistente o errore database)
-
 5. Reindirizzamento finale
 
 ```php
 header('Location: /admin/dashboard.php');
 exit;
 ```
-
-In tutti i casi, l'utente viene reindirizzato alla dashboard amministrativa.
 
 ### Parametri POST richiesti
 
@@ -166,16 +151,10 @@ In tutti i casi, l'utente viene reindirizzato alla dashboard amministrativa.
 
 ### Messaggi flash
 
-Messaggi di successo:
-- `Evento eliminato.` — eliminazione completata con successo
-
-Messaggi di errore:
-- `ID evento mancante.` — parametro `id` non fornito o vuoto
-- `Evento non trovato.` — `id` non corrisponde a nessun evento esistente
+- Successo: `Evento eliminato.`
+- Errori: `ID evento mancante.`, `Evento non trovato.`
 
 ### Esempio di utilizzo
-
-Form HTML di riferimento:
 
 ```html
 <form method="POST" action="/admin/delete_event.php" onsubmit="return confirm('Sei sicuro di voler eliminare questo evento?');">
@@ -186,12 +165,168 @@ Form HTML di riferimento:
 
 ### Sicurezza
 
-Misure implementate:
-- Autenticazione obbligatoria: `require_login()` impedisce accessi non autorizzati.
-- Metodo POST obbligatorio: previene eliminazioni accidentali via link GET.
-- Validazione input: controlla che l'ID sia presente prima di procedere.
-- Type casting: converte l'ID in stringa per coerenza.
-- Consigli aggiuntivi: usare controlli di autorizzazione (ruoli/permessi) se presenti, loggare operazioni sensibili e usare transazioni in `delete_event_record()` se la cancellazione coinvolge più tabelle.
+- Autenticazione obbligatoria tramite `require_login()`.
+- Metodo POST obbligatorio per prevenire cancellazioni via GET.
+- Validazione dell'input e type casting dell'ID.
+- Raccomandazioni: autorizzazioni basate su ruoli, logging e uso di transazioni in `delete_event_record()`.
+
+## Panoramica — Modifica Evento
+
+Questa sezione descrive lo script che mostra e processa il form di modifica di un evento. Lo script combina caricamento dati esistenti, visualizzazione form con sezioni ripetibili e salvataggio delle modifiche.
+
+### Posizione file
+`/admin/edit_event.php` (o percorso equivalente nella directory `admin`)
+
+> Nota: il codice di riferimento è il file PHP fornito nella root `admin/` che esegue:
+> - inclusione delle dipendenze
+> - controllo autenticazione
+> - recupero evento tramite `id` GET
+> - rendering del form precompilato
+> - gestione POST per aggiornamento tramite `update_event_record()`
+
+### Dipendenze
+
+File richiesti:
+- `../includes/session.php` — gestione delle sessioni utente
+- `../includes/data.php` — funzioni di accesso ai dati (include `fetch_event()` e `update_event_record()`)
+- `../includes/layout.php` — funzioni di rendering (`render_admin_shell_start()`, `render_admin_shell_end()`)
+
+Funzioni esterne utilizzate:
+- `require_login()` — verifica che l'utente sia autenticato
+- `fetch_event($id)` — recupera l'evento e i record correlati (accessibilità, tariffe, orari, multimedia)
+- `update_event_record($id, $data)` — aggiorna l'evento con i dati inviati
+- `add_flash($type, $message)` — aggiunge messaggi flash
+- `render_admin_shell_start($title, $active)` / `render_admin_shell_end()` — wrapper layout
+
+Helper locali definiti nel file:
+- `old_edit(array $data, string $key, string $fallback = ''): string` — ripopolamento sicuro dei campi singoli (usa htmlspecialchars)
+- `old_array(array $data, string $key, int $index, string $fallback = ''): string` — ripopolamento per campi array
+- `to_datetime_local(?string $value): string` — converte una stringa datetime in formato `Y-m-d\TH:i` per `input[type="datetime-local"]`
+
+### Flusso di esecuzione
+
+1. Autenticazione
+
+```php
+require_login();
+```
+
+2. Recupero ID evento (GET)
+
+```php
+$id = isset($_GET['id']) ? (string) $_GET['id'] : '';
+$eventBundle = $id ? fetch_event($id) : null;
+if (!$eventBundle) {
+    add_flash('error', 'Evento non trovato.');
+    header('Location: /admin/dashboard.php');
+    exit;
+}
+```
+
+- Se l'ID non esiste o `fetch_event()` restituisce null, l'utente viene reindirizzato alla dashboard con errore.
+
+3. Preparazione dati per il form
+
+- Estrazione dei sotto-array: evento, accessibilità, tariffe, orari, multimedia.
+- Costruzione di `$input` con i valori correnti, incluse le colonne dei sotto-record tramite `array_column()` per popolare i repeater:
+  - tariffe_tipo[], tariffe_prezzo[], tariffe_valuta[]
+  - orari_giorno[], orari_apertura[], orari_chiusura[]
+  - media_tipo[], media_url[], media_descrizione[]
+- `startDateTime` e `endDateTime` sono impostati via `to_datetime_local()` sui valori originali (`data_inizio`, `data_fine`) per alimentare i campi `datetime-local`.
+
+4. Gestione POST (salvataggio)
+
+```php
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input['startDateTime'] = to_datetime_local($event['data_inizio']);
+    $input['endDateTime'] = to_datetime_local($event['data_fine']);
+
+    $input = array_merge($input, $_POST);
+    [$errors, $updatedId] = update_event_record($id, $_POST);
+    if (empty($errors)) {
+        add_flash('success', 'Evento aggiornato.');
+        header('Location: /admin/dashboard.php');
+        exit;
+    }
+}
+```
+
+- I valori POST vengono fusi in `$input` per ripopolare il form in caso di errori.
+- `update_event_record()` è responsabile della validazione server-side e dell'aggiornamento del DB; restituisce un array [$errors, $updatedId].
+- In assenza di errori si aggiunge un messaggio flash di successo e si reindirizza alla dashboard.
+
+> Nota sul comportamento: il codice imposta `startDateTime` / `endDateTime` a partire dai valori originali prima della fusione con `$_POST`. Questo mantiene i valori leggibili nel form ma l'aggiornamento effettivo viene eseguito con i dati passati in `$_POST` a `update_event_record()`.
+
+### Struttura del form (campi principali)
+
+Sezioni e campi principali mostrati nel form:
+- Informazioni base:
+  - `name` (text)
+  - `category` (select: Arte e Cultura, Formazione, Sport, Altro)
+  - `description` (textarea)
+  - `startDateTime` / `endDateTime` (`datetime-local`)
+- Organizzatore e sede:
+  - `organizzatore` (text)
+  - `sede_via`, `sede_cap`, `sede_paese` (text)
+- Accessibilità:
+  - `rampe`, `ascensori` (checkbox)
+  - `posti_disabili` (number)
+- Sezioni ripetibili:
+  - Tariffe: `tariffe_tipo[]`, `tariffe_prezzo[]`, `tariffe_valuta[]`
+  - Orari: `orari_giorno[]` (date), `orari_apertura[]` (time), `orari_chiusura[]` (time)
+  - Multimedia: `media_tipo[]`, `media_url[]`, `media_descrizione[]`
+
+Ogni sezione ripetibile usa il pattern:
+- Container: `data-repeater="nome"`
+- Righe: `data-row`
+- Pulsante aggiungi: `data-add-row data-target="nome"`
+- Pulsante rimuovi: `data-remove-row`
+
+Il numero iniziale di righe è calcolato con PHP, ad esempio:
+```php
+$tariffeRows = max(1, count($input['tariffe_tipo'] ?? []));
+```
+
+### Gestione errori e feedback
+
+- Errori server-side: l'array `$errors` (restituito da `update_event_record()`) viene mostrato in cima al form in un banner rosso e ogni errore è escapitato con `htmlspecialchars()`.
+- Errori client-side: elemento `<div data-client-errors class="hidden"></div>` usato dal JS per mostrare validazioni dinamiche.
+- Messaggi flash:
+  - Successo: `Evento aggiornato.`
+  - Errore di caricamento iniziale: `Evento non trovato.`
+
+### Considerazioni di sicurezza
+
+- Autenticazione obbligatoria tramite `require_login()`.
+- Escaping output con `htmlspecialchars()` per prevenire XSS (`old_edit`, `old_array`).
+- Validazione server-side centralizzata in `update_event_record()` (necessaria).
+- Uso raccomandato di PDO con query parametrizzate in `includes/data.php` per prevenire SQL injection.
+- Controlli aggiuntivi raccomandati:
+  - Verificare l'autorizzazione (ruoli/permessi) prima di permettere modifiche.
+  - Sanitizzare/validare URL multimediali.
+  - Usare transazioni se l'aggiornamento coinvolge più tabelle.
+
+### Parametri / metodi utilizzati
+
+- Lettura evento: parametro `id` via GET obbligatorio per mostrare il form.
+- Salvataggio: richiesta POST con campi del form; `update_event_record($id, $data)` prende i dati da `$_POST`.
+
+### Esempio di accesso alla pagina di modifica
+
+Link per aprire il form di modifica per un evento con id `123`:
+
+```html
+<a href="/admin/edit_event.php?id=123">Modifica evento</a>
+```
+
+### Note di manutenzione / miglioramenti consigliati
+
+- Centralizzare la form-building / old helpers per riusabilità e consistenza.
+- Migliorare la gestione delle date unificando la conversione tra timezone e formato `datetime-local`.
+- Validare client-side i campi ripetibili e assicurarsi che `update_event_record()` gestisca array vuoti/assenze.
+- Considerare la paginazione delle sezioni multimediali se grandi.
+
+---
 
 ## Panoramica del Form di Creazione Eventi
 
@@ -334,7 +469,7 @@ Per la validazione lato client (JavaScript) e la visualizzazione dinamica degli 
 ### Considerazioni di sicurezza
 - Autenticazione: `require_login()` protegge la pagina.
 - XSS Prevention: tutti gli output usano `htmlspecialchars()` con opzioni adeguate.
-- Validazione: client-side (HTML5/JS) e server-side (in `create_event()`).
+- Validazione: client-side (HTML5/JS) e server-side (in `create_event()` e `update_event_record()`).
 - Uso di PDO con query parametrizzate per prevenire SQL injection.
 - Sanitizzazione/validazione dei file multimediali prima del salvataggio o della visualizzazione.
 
@@ -359,7 +494,7 @@ Aggiungere un nuovo campo semplice:
 1. Aggiungi il campo all'array `$input` iniziale.
 2. Aggiungi l'HTML del campo nel form.
 3. Usa `old($input, 'nome_campo')` per il valore.
-4. Aggiorna la funzione `create_event()` in `includes/data.php`.
+4. Aggiorna la funzione `create_event()` / `update_event_record()` in `includes/data.php`.
 
 Aggiungere una nuova sezione ripetibile:
 1. Aggiungi i campi array a `$input` (es. `'nuovo_campo[]' => ['']`).
