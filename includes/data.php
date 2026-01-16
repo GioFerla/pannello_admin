@@ -142,11 +142,6 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
             $errors[] = 'Formato data non valido per il giorno. Usare YYYY-MM-DD.';
             continue;
         }
-        $lastErrors = DateTime::getLastErrors();
-        if ($lastErrors && ($lastErrors['warning_count'] > 0 || $lastErrors['error_count'] > 0)) {
-            $errors[] = 'Formato data non valido per il giorno. Usare YYYY-MM-DD.';
-            continue;
-        }
         // Validate time formats and compare
         $dtApertura = DateTime::createFromFormat('H:i', $apertura);
         $dtChiusura = DateTime::createFromFormat('H:i', $chiusura);
