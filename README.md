@@ -148,7 +148,7 @@ Il form è organizzato in **sezioni semantiche**:
 
 #### Toast e feedback
 - `add_flash()` (session-based) per messaggi successo/errore post-redirect.
-- Modale conferma per azioni distruttive (vedi `event-delete.php`).
+- Sistema di feedback consistente con altre pagine admin (modale conferma per eliminazione in `event-delete.php`).
 
 #### Responsive design
 - Tailwind CSS con grid responsive (`grid-cols-1 md:grid-cols-2`).
