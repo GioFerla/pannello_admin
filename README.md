@@ -318,17 +318,9 @@ Link per aprire il form di modifica per un evento con id `123`:
 ```html
 <a href="/admin/edit_event.php?id=123">Modifica evento</a>
 ```
-
-### Note di manutenzione / miglioramenti consigliati
-
-- Centralizzare la form-building / old helpers per riusabilità e consistenza.
-- Migliorare la gestione delle date unificando la conversione tra timezone e formato `datetime-local`.
-- Validare client-side i campi ripetibili e assicurarsi che `update_event_record()` gestisca array vuoti/assenze.
-- Considerare la paginazione delle sezioni multimediali se grandi.
-
 ---
 
-## Panoramica del Form di Creazione Eventi
+## Panoramica — Creazione Evento
 
 Questo documento descrive il funzionamento del form per la creazione di nuovi eventi. Il file gestisce sia la visualizzazione del form che l'elaborazione dei dati inviati.
 
