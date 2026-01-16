@@ -10,9 +10,9 @@ Applicazione full‑stack PHP + Apache con frontend Tailwind CSS e database Mari
 - [Workflow](#workflow)
 - [Variabili d'ambiente principali](#variabili-dambiente-principali)
 - [Note](#note)
-- [Panoramica — Lista eventi](#panoramica---lista-eventi)
 - [Panoramica — Eliminazione Eventi](#panoramica---eliminazione-eventi)
 - [Panoramica — Modifica Evento](#panoramica---modifica-evento)
+- [Panoramica — Lista eventi / Dashboard](#panoramica---lista-eventi--dashboard)
 - [Panoramica del Form di Creazione Eventi](#panoramica-del-form-di-creazione-eventi)
   - [Dipendenze](#dipendenze)
   - [Flusso di funzionamento](#flusso-di-funzionamento)
@@ -80,112 +80,6 @@ Configurate in `docker-compose.yml` per il servizio `web`:
 - Per modificare lo schema iniziale, aggiorna `docker/db/init.sql` e ricrea i container.
 - I dati persistono nel volume `db_data`.
 - Tailwind è fornito da CDN per semplicità.
-
-## Panoramica — Lista eventi
-
-Questa pagina mostra l'elenco degli eventi pubblicati e fornisce azioni rapide per creare, modificare o eliminare eventi.
-
-### Posizione file
-`/admin/events-list.php` (o percorso equivalente nella directory `admin`)
-
-> Nota: il codice di riferimento è il file PHP fornito che esegue listaggio e rendering della tabella eventi.
-
-### Dipendenze
-
-File richiesti:
-- `../includes/session.php` — gestione delle sessioni utente
-- `../includes/data.php` — funzioni di accesso ai dati (include `list_events()`)
-- `../includes/layout.php` — funzioni di rendering (`render_admin_shell_start()`, `render_admin_shell_end()`)
-
-Funzioni esterne utilizzate:
-- `require_login()` — verifica che l'utente sia autenticato
-- `list_events()` — ritorna array di eventi con campi necessari per la tabella
-- `render_admin_shell_start($title, $active)` / `render_admin_shell_end()` — wrapper layout
-
-### Flusso di esecuzione
-
-1. Autenticazione
-
-```php
-require_once __DIR__ . '/../includes/session.php';
-require_once __DIR__ . '/../includes/data.php';
-require_once __DIR__ . '/../includes/layout.php';
-require_login();
-```
-
-2. Recupero eventi
-
-```php
-$events = list_events();
-```
-
-3. Rendering pagina
-
-- Avvio shell di amministrazione con `render_admin_shell_start('Lista eventi', 'dashboard')`.
-- Testo introduttivo e pulsante per creare un nuovo evento (`/admin/event-new.php`).
-- Tabella con intestazioni: Evento, Periodo, Luogo, Organizzatore, Dataset, Azioni.
-- Se la lista è vuota viene mostrata una riga indicante l'assenza di eventi.
-
-4. Righe della tabella (per ogni evento)
-- Campo Evento: nome e categoria (escapati con `htmlspecialchars()`).
-- Periodo: data/ora inizio e fine formattate con `date()` dopo `strtotime()` (escapate).
-- Luogo: via, CAP e paese (escapati).
-- Organizzatore: nome dell'ente (escapato).
-- Dataset: conteggi di tariffe, orari e media (convertiti in int).
-- Azioni:
-  - Link Modifica: `/admin/event-edit.php?id=<id>` (urlencode sull'id).
-  - Bottone Elimina: bottone con attributi `data-delete`, `data-id`, `data-name` usati dal JS per aprire il modal di conferma.
-
-5. Modale di eliminazione
-- HTML del modal presente in pagina con id `delete-modal`.
-- Elementi chiave:
-  - `#delete-event-name` — span per mostrare il nome evento nella modale.
-  - Form `#delete-form` con action `/admin/event-delete.php` (metodo POST).
-  - Input nascosto `#delete-event-id` che viene popolato con l'id dell'evento.
-- Il JavaScript lato client legge gli attributi `data-id` e `data-name` dal bottone Elimina, apre il modal e popola `#delete-event-name` e `#delete-event-id`. L'invio del form esegue la cancellazione via POST verso `/admin/event-delete.php`.
-
-6. Chiusura shell di amministrazione con `render_admin_shell_end()`.
-
-### Parametri / metodi utilizzati
-
-- Visualizzazione elenco: nessun parametro GET obbligatorio; la pagina legge tutti gli eventi tramite `list_events()`.
-- Eliminazione evento: richiesta POST verso `/admin/event-delete.php` con parametro `id` (hidden input) dal form nel modal.
-
-### Struttura della tabella (colonne)
-- Evento: `nome`, `categoria`
-- Periodo: `data_inizio` → `data_fine` (formattate)
-- Luogo: `via`, `cap`, `paese`
-- Organizzatore: `organizzatore`
-- Dataset: `tariffe_count`, `orari_count`, `media_count`
-- Azioni: Link Modifica e Bottone Elimina (gestito tramite modal)
-
-### Sicurezza e validazione in pagina
-- Autenticazione obbligatoria con `require_login()`.
-- Tutte le uscite verso l'HTML usano `htmlspecialchars()` (o cast a int per conteggi) per prevenire XSS.
-- L'eliminazione avviene tramite form POST verso `/admin/event-delete.php` (hidden input `id`); il flusso di cancellazione è gestito dal server su quella rotta.
-
-### Esempi di elementi presenti nel file
-- Pulsante nuovo evento:
-```html
-<a href="/admin/event-new.php">+ Nuovo evento</a>
-```
-- Link modifica:
-```html
-<a href="/admin/event-edit.php?id=<?php echo urlencode($event['id']); ?>">Modifica</a>
-```
-- Bottone elimina (popola modal via JS):
-```html
-<button type="button" data-delete data-id="<?php echo htmlspecialchars($event['id']); ?>" data-name="<?php echo htmlspecialchars($event['nome']); ?>">Elimina</button>
-```
-- Modale con form di eliminazione:
-```html
-<form id="delete-form" action="/admin/event-delete.php" method="POST">
-  <input type="hidden" name="id" id="delete-event-id" value="">
-  <button type="submit">Elimina</button>
-</form>
-```
-
----
 
 ## Panoramica — Eliminazione Eventi
 
@@ -276,6 +170,7 @@ exit;
 - Metodo POST obbligatorio: previene eliminazioni accidentali via link GET.
 - Validazione input: controlla che l'ID sia presente prima di procedere.
 - Type casting: converte l'ID in stringa per coerenza.
+- Consigli aggiuntivi: usare controlli di autorizzazione (ruoli/permessi) se presenti, loggare operazioni sensibili e usare transazioni in `delete_event_record()` se la cancellazione coinvolge più tabelle.
 
 ## Panoramica — Modifica Evento
 
@@ -283,13 +178,6 @@ Questa sezione descrive lo script che mostra e processa il form di modifica di u
 
 ### Posizione file
 `/admin/edit_event.php` (o percorso equivalente nella directory `admin`)
-
-> Nota: il codice di riferimento è il file PHP fornito nella directory `admin/` che esegue:
-> - inclusione delle dipendenze
-> - controllo autenticazione
-> - recupero evento tramite `id` GET
-> - rendering del form precompilato
-> - gestione POST per aggiornamento tramite `update_event_record()`
 
 ### Dipendenze
 
@@ -330,8 +218,6 @@ if (!$eventBundle) {
 }
 ```
 
-- Se l'ID non esiste o `fetch_event()` restituisce null, l'utente viene reindirizzato alla dashboard con errore.
-
 3. Preparazione dati per il form
 
 - Estrazione dei sotto-array: evento, accessibilità, tariffe, orari, multimedia.
@@ -362,8 +248,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 - `update_event_record()` è responsabile della validazione server-side e dell'aggiornamento del DB; restituisce un array [$errors, $updatedId].
 - In assenza di errori si aggiunge un messaggio flash di successo e si reindirizza alla dashboard.
 
-> Nota sul comportamento: il codice imposta `startDateTime` / `endDateTime` a partire dai valori originali prima della fusione con `$_POST`. Questo mantiene i valori leggibili nel form ma l'aggiornamento effettivo viene eseguito con i dati passati in `$_POST` a `update_event_record()`.
-
 ### Struttura del form (campi principali)
 
 Sezioni e campi principali mostrati nel form:
@@ -383,17 +267,6 @@ Sezioni e campi principali mostrati nel form:
   - Orari: `orari_giorno[]` (date), `orari_apertura[]` (time), `orari_chiusura[]` (time)
   - Multimedia: `media_tipo[]`, `media_url[]`, `media_descrizione[]`
 
-Ogni sezione ripetibile usa il pattern:
-- Container: `data-repeater="nome"`
-- Righe: `data-row`
-- Pulsante aggiungi: `data-add-row data-target="nome"`
-- Pulsante rimuovi: `data-remove-row`
-
-Il numero iniziale di righe è calcolato con PHP, ad esempio:
-```php
-$tariffeRows = max(1, count($input['tariffe_tipo'] ?? []));
-```
-
 ### Gestione errori e feedback
 
 - Errori server-side: l'array `$errors` (restituito da `update_event_record()`) viene mostrato in cima al form in un banner rosso e ogni errore è escapitato con `htmlspecialchars()`.
@@ -406,21 +279,93 @@ $tariffeRows = max(1, count($input['tariffe_tipo'] ?? []));
 
 - Autenticazione obbligatoria tramite `require_login()`.
 - Escaping output con `htmlspecialchars()` per prevenire XSS (`old_edit`, `old_array`).
-- Validazione server-side centralizzata in `update_event_record()` (necessaria).
+- Validazione server-side centralizzata in `update_event_record()`.
 - Uso raccomandato di PDO con query parametrizzate in `includes/data.php` per prevenire SQL injection.
+- Sanitizzazione/validazione dei file multimediali prima del salvataggio o della visualizzazione.
 
-### Parametri / metodi utilizzati
+## Panoramica — Lista eventi / Dashboard
 
-- Lettura evento: parametro `id` via GET obbligatorio per mostrare il form.
-- Salvataggio: richiesta POST con campi del form; `update_event_record($id, $data)` prende i dati da `$_POST`.
+Questa sezione documenta lo script che visualizza la lista degli eventi nella dashboard amministrativa e fornisce azioni rapide (crea, modifica, elimina).
 
-### Esempio di accesso alla pagina di modifica
+### Posizione file
+`/admin/dashboard.php`
 
-Link per aprire il form di modifica per un evento con id `123`:
+### Dipendenze
 
-```html
-<a href="/admin/edit_event.php?id=123">Modifica evento</a>
+File richiesti:
+- `../includes/session.php` — gestione delle sessioni utente
+- `../includes/data.php` — funzioni di accesso ai dati (include `list_events()`)
+- `../includes/layout.php` — funzioni di rendering (`render_admin_shell_start()`, `render_admin_shell_end()`)
+
+Funzioni esterne utilizzate:
+- `require_login()` — verifica che l'utente sia autenticato
+- `list_events()` — recupera l'array di eventi con campi essenziali e conteggi correlati
+- `render_admin_shell_start($title, $active)` / `render_admin_shell_end()` — wrapper layout
+
+### Flusso di esecuzione
+
+1. Autenticazione e caricamento dati
+
+```php
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/data.php';
+require_once __DIR__ . '/../includes/layout.php';
+require_login();
+
+$events = list_events();
+render_admin_shell_start('Lista eventi', 'dashboard');
 ```
+
+- `list_events()` fornisce una lista di eventi; ogni elemento contiene campi come `id`, `nome`, `categoria`, `data_inizio`, `data_fine`, `via`, `cap`, `paese`, `organizzatore` e conteggi `tariffe_count`, `orari_count`, `media_count`.
+
+2. Rendering della lista
+
+- Se l'array `$events` è vuoto viene mostrata una riga con il messaggio: "Nessun evento presente. Crea il primo."
+- Per ogni evento viene mostrata una riga con colonne:
+  - Evento: nome e categoria (escapati con `htmlspecialchars`)
+  - Periodo: `data_inizio` → `data_fine` formattati con `date('d/m/Y H:i', strtotime(...))`
+  - Luogo: via, CAP, paese
+  - Organizzatore
+  - Dataset: conteggi (tariffe, orari, media)
+  - Azioni: pulsanti per Modifica ed Elimina
+
+3. Azioni disponibili
+
+- Nuovo evento: link a `/admin/event-new.php`
+- Modifica: link a `/admin/event-edit.php?id=...` (uso di `urlencode($event['id'])`)
+- Elimina: button HTML (non form) con attributi data usati dal JS:
+  - `data-delete`
+  - `data-id="<?php echo htmlspecialchars($event['id']); ?>"`
+  - `data-name="<?php echo htmlspecialchars($event['nome']); ?>"`
+
+4. Modal di conferma eliminazione
+
+- Modal con id `delete-modal` (inizialmente `hidden`) contiene:
+  - Titolo e testo di conferma
+  - Elemento `#delete-event-name` dove il JS inserisce il nome dell'evento
+  - Form con id `delete-form` che punta a `/admin/event-delete.php` (metodo POST) — include input hidden `id` con id `delete-event-id`
+  - Pulsante `data-close-modal` per chiudere la modal
+
+- Il comportamento del pulsante Elimina nella tabella è gestito dal JavaScript client (in `assets/js/app.js`), che apre la modal, popola `#delete-event-name` e `#delete-event-id`, e permette l'invio del form per eseguire la cancellazione.
+
+### Sicurezza & validazione lato server
+
+- La pagina richiede autenticazione (`require_login()`).
+- L'azione di eliminazione effettiva viene eseguita dal form POST contenuto nella modal; il server deve validare l'ID e le autorizzazioni prima di eliminare.
+- Tutto l'output visibile è escapato con `htmlspecialchars()` per prevenire XSS.
+
+### Struttura HTML/CSS/JS rilevante (sintesi)
+
+- Tabella HTML responsiva con classi Tailwind.
+- Pulsanti azione:
+  - Link: `/admin/event-new.php`, `/admin/event-edit.php?id=...`
+  - Delete button: attributi `data-delete`, `data-id`, `data-name`
+- Modal di eliminazione:
+  - id `delete-modal`
+  - form `#delete-form` action `/admin/event-delete.php` method `POST`
+  - input hidden `#delete-event-id`
+  - button `data-close-modal`
+- Comportamento dinamico del modal e dei repeater gestito in `assets/js/app.js`.
 
 ---
 
