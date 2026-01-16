@@ -31,14 +31,23 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
     if ($nome === '' || strlen($nome) < 3) {
         $errors[] = 'Il nome deve avere almeno 3 caratteri.';
     }
+    if (strlen($nome) > 200) {
+        $errors[] = 'Il nome non può superare i 200 caratteri.';
+    }
     if ($descrizione === '' || strlen($descrizione) < 10) {
         $errors[] = 'La descrizione deve avere almeno 10 caratteri.';
     }
     if ($categoria === '') {
         $errors[] = 'La categoria è obbligatoria.';
     }
+    if (strlen($categoria) > 100) {
+        $errors[] = 'La categoria non può superare i 100 caratteri.';
+    }
     if ($organizzatore === '') {
         $errors[] = "L'organizzatore è obbligatorio.";
+    }
+    if (strlen($organizzatore) > 150) {
+        $errors[] = "L'organizzatore non può superare i 150 caratteri.";
     }
 
     $start = normalize_datetime($input['startDateTime'] ?? '');
@@ -64,6 +73,15 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
         if ($value === '') {
             $errors[] = $label . ' è obbligatorio.';
         }
+    }
+    if (strlen($via) > 255) {
+        $errors[] = 'L\'indirizzo della sede non può superare i 255 caratteri.';
+    }
+    if ($cap !== '' && !preg_match('/^\d{5}$/', $cap)) {
+        $errors[] = 'Il CAP deve essere composto da 5 cifre.';
+    }
+    if (strlen($paese) > 120) {
+        $errors[] = 'Il paese non può superare i 120 caratteri.';
     }
 
     $accessibilita = [
@@ -118,7 +136,24 @@ function validate_event_payload(array $input, ?string $forcedId = null): array
             $errors[] = 'Ogni orario deve includere giorno, apertura e chiusura.';
             continue;
         }
-        if ($apertura >= $chiusura) {
+        // Validate date format
+        $dt = DateTime::createFromFormat('Y-m-d', $giorno);
+        if (!$dt || $dt->format('Y-m-d') !== $giorno) {
+            $errors[] = 'Formato data non valido per il giorno. Usare YYYY-MM-DD.';
+            continue;
+        }
+        // Validate time formats and compare
+        $dtApertura = DateTime::createFromFormat('H:i', $apertura);
+        $dtChiusura = DateTime::createFromFormat('H:i', $chiusura);
+        if (!$dtApertura || $dtApertura->format('H:i') !== $apertura) {
+            $errors[] = 'Formato ora non valido per apertura. Usare HH:MM.';
+            continue;
+        }
+        if (!$dtChiusura || $dtChiusura->format('H:i') !== $chiusura) {
+            $errors[] = 'Formato ora non valido per chiusura. Usare HH:MM.';
+            continue;
+        }
+        if ($dtApertura >= $dtChiusura) {
             $errors[] = "L'ora di apertura deve precedere quella di chiusura.";
             continue;
         }
