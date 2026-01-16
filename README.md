@@ -10,6 +10,7 @@ Applicazione full‑stack PHP + Apache con frontend Tailwind CSS e database Mari
 - [Workflow](#workflow)
 - [Variabili d'ambiente principali](#variabili-dambiente-principali)
 - [Note](#note)
+- [Panoramica — Eliminazione Eventi](#panoramica---eliminazione-eventi)
 - [Panoramica del Form di Creazione Eventi](#panoramica-del-form-di-creazione-eventi)
   - [Dipendenze](#dipendenze)
   - [Flusso di funzionamento](#flusso-di-funzionamento)
@@ -77,6 +78,120 @@ Configurate in `docker-compose.yml` per il servizio `web`:
 - Per modificare lo schema iniziale, aggiorna `docker/db/init.sql` e ricrea i container.
 - I dati persistono nel volume `db_data`.
 - Tailwind è fornito da CDN per semplicità.
+
+## Panoramica — Eliminazione Eventi
+
+Questo script PHP gestisce l'eliminazione di eventi dal sistema amministrativo. È progettato per essere richiamato esclusivamente tramite richieste POST dal pannello di amministrazione.
+
+### Posizione file
+`/admin/delete_event.php` (o percorso equivalente nella directory `admin`)
+
+### Dipendenze
+
+File richiesti:
+- `../includes/session.php` — gestione delle sessioni utente
+- `../includes/data.php` — funzioni di accesso ai dati (include `delete_event_record()`)
+
+Funzioni esterne utilizzate:
+- `require_login()` — verifica che l'utente sia autenticato
+- `delete_event_record($id)` — elimina un evento dal database
+- `add_flash($type, $message)` — aggiunge messaggi flash per l'utente
+
+### Flusso di esecuzione
+
+1. Controllo autenticazione
+
+```php
+require_login();
+```
+
+Verifica che l'utente sia loggato. Se non autenticato, l'utente viene reindirizzato (gestito internamente da `require_login()`).
+
+2. Validazione metodo HTTP
+
+```php
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: /admin/dashboard.php');
+    exit;
+}
+```
+
+Scopo: prevenire accessi diretti via GET o altri metodi HTTP. Se la richiesta non è POST, l'utente viene reindirizzato alla dashboard amministrativa.
+
+3. Recupero e validazione ID
+
+```php
+$id = isset($_POST['id']) ? (string) $_POST['id'] : '';
+if ($id === '') {
+    add_flash('error', 'ID evento mancante.');
+    header('Location: /admin/dashboard.php');
+    exit;
+}
+```
+
+Validazione:
+- Verifica la presenza del parametro `id` nei dati POST
+- Converte l'ID in stringa
+- Se l'ID è vuoto, mostra un messaggio di errore e reindirizza
+
+4. Eliminazione evento
+
+```php
+if (delete_event_record($id)) {
+    add_flash('success', 'Evento eliminato.');
+} else {
+    add_flash('error', 'Evento non trovato.');
+}
+```
+
+Logica:
+- Chiama `delete_event_record($id)` per eliminare l'evento
+- Successo: mostra messaggio di conferma
+- Fallimento: mostra messaggio di errore (evento non esistente o errore database)
+
+5. Reindirizzamento finale
+
+```php
+header('Location: /admin/dashboard.php');
+exit;
+```
+
+In tutti i casi, l'utente viene reindirizzato alla dashboard amministrativa.
+
+### Parametri POST richiesti
+
+| Parametro | Tipo   | Obbligatorio | Descrizione                              |
+|-----------|--------|--------------|------------------------------------------|
+| id        | string | Sì           | Identificativo univoco dell'evento da eliminare |
+
+### Messaggi flash
+
+Messaggi di successo:
+- `Evento eliminato.` — eliminazione completata con successo
+
+Messaggi di errore:
+- `ID evento mancante.` — parametro `id` non fornito o vuoto
+- `Evento non trovato.` — `id` non corrisponde a nessun evento esistente
+
+### Esempio di utilizzo
+
+Form HTML di riferimento:
+
+```html
+<form method="POST" action="/admin/delete_event.php" onsubmit="return confirm('Sei sicuro di voler eliminare questo evento?');">
+    <input type="hidden" name="id" value="<?php echo htmlspecialchars($event_id, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?>">
+    <button type="submit" class="btn-danger">Elimina Evento</button>
+</form>
+```
+
+### Sicurezza
+
+Misure implementate:
+- Autenticazione obbligatoria: `require_login()` impedisce accessi non autorizzati.
+- Metodo POST obbligatorio: previene eliminazioni accidentali via link GET.
+- Validazione input: controlla che l'ID sia presente prima di procedere.
+- Type casting: converte l'ID in stringa per coerenza.
+- Consigli aggiuntivi: usare controlli di autorizzazione (ruoli/permessi) se presenti, loggare operazioni sensibili e usare transazioni in `delete_event_record()` se la cancellazione coinvolge più tabelle.
 
 ## Panoramica del Form di Creazione Eventi
 
