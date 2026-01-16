@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/data.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_login();
 
-$events = load_events();
+$events = list_events();
 render_admin_shell_start('Lista eventi', 'dashboard');
 ?>
 <div class="flex justify-between items-center mb-4">
@@ -24,7 +24,8 @@ render_admin_shell_start('Lista eventi', 'dashboard');
           <th class="px-4 py-3 text-left">Evento</th>
           <th class="px-4 py-3 text-left">Periodo</th>
           <th class="px-4 py-3 text-left">Luogo</th>
-          <th class="px-4 py-3 text-left">Contatto</th>
+          <th class="px-4 py-3 text-left">Organizzatore</th>
+          <th class="px-4 py-3 text-left">Dataset</th>
           <th class="px-4 py-3 text-right">Azioni</th>
         </tr>
       </thead>
@@ -37,24 +38,27 @@ render_admin_shell_start('Lista eventi', 'dashboard');
           <?php foreach ($events as $event): ?>
             <tr class="hover:bg-slate-50">
               <td class="px-4 py-4">
-                <div class="font-semibold text-slate-800"><?php echo htmlspecialchars($event['name']); ?></div>
-                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['scope']); ?></div>
+                <div class="font-semibold text-slate-800"><?php echo htmlspecialchars($event['nome']); ?></div>
+                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['categoria']); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
-                <?php echo htmlspecialchars($event['startDateTime']); ?>
-                <div class="text-xs text-slate-500">&rarr; <?php echo htmlspecialchars($event['endDateTime']); ?></div>
+                <?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($event['data_inizio']))); ?>
+                <div class="text-xs text-slate-500">&rarr; <?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($event['data_fine']))); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
-                <div><?php echo htmlspecialchars($event['venue']['name']); ?></div>
-                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['venue']['address']['city']); ?></div>
+                <div><?php echo htmlspecialchars($event['via'] ?? ''); ?></div>
+                <div class="text-xs text-slate-500"><?php echo htmlspecialchars(($event['cap'] ?? '') . ' ' . ($event['paese'] ?? '')); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
-                <div><?php echo htmlspecialchars($event['contact']['email']); ?></div>
-                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['contact']['phone']); ?></div>
+                <div class="font-medium text-slate-800"><?php echo htmlspecialchars($event['organizzatore']); ?></div>
+              </td>
+              <td class="px-4 py-4 text-sm text-slate-700">
+                <div class="text-xs text-slate-500">Tariffe: <?php echo (int) $event['tariffe_count']; ?> | Orari: <?php echo (int) $event['orari_count']; ?></div>
+                <div class="text-xs text-slate-500">Media: <?php echo (int) $event['media_count']; ?></div>
               </td>
               <td class="px-4 py-4 text-right text-sm">
-                <a href="/admin/event-edit.php?id=<?php echo (int) $event['id']; ?>" class="inline-flex items-center px-3 py-2 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50">Modifica</a>
-                <button type="button" data-delete data-id="<?php echo (int) $event['id']; ?>" data-name="<?php echo htmlspecialchars($event['name']); ?>" class="ml-2 inline-flex items-center px-3 py-2 rounded-md border border-red-200 text-red-700 hover:bg-red-50">Elimina</button>
+                <a href="/admin/event-edit.php?id=<?php echo urlencode($event['id']); ?>" class="inline-flex items-center px-3 py-2 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50">Modifica</a>
+                <button type="button" data-delete data-id="<?php echo htmlspecialchars($event['id']); ?>" data-name="<?php echo htmlspecialchars($event['nome']); ?>" class="ml-2 inline-flex items-center px-3 py-2 rounded-md border border-red-200 text-red-700 hover:bg-red-50">Elimina</button>
               </td>
             </tr>
           <?php endforeach; ?>

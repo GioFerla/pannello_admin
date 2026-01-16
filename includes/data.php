@@ -1,191 +1,462 @@
 <?php
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
 
-function data_config(): array
+function normalize_datetime(string $value): ?string
 {
-    static $cfg;
-    if (!$cfg) {
-        $cfg = require __DIR__ . '/config.php';
+    $value = trim($value);
+    if ($value === '') {
+        return null;
     }
-    return $cfg;
-}
-
-function load_events(): array
-{
-    $cfg = data_config();
-    if (!file_exists($cfg['data_file'])) {
-        return [];
-    }
-    $raw = file_get_contents($cfg['data_file']);
-    $data = json_decode($raw, true);
-    return is_array($data) ? $data : [];
-}
-
-function save_events(array $events): bool
-{
-    $cfg = data_config();
-    $json = json_encode($events, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    return file_put_contents($cfg['data_file'], $json, LOCK_EX) !== false;
-}
-
-function find_event(int $id): ?array
-{
-    foreach (load_events() as $event) {
-        if ((int) ($event['id'] ?? 0) === $id) {
-            return $event;
+    $dt = DateTime::createFromFormat('Y-m-d\TH:i', $value) ?: DateTime::createFromFormat('Y-m-d H:i', $value);
+    if (!$dt) {
+        try {
+            $dt = new DateTime($value);
+        } catch (Exception $e) {
+            return null;
         }
     }
-    return null;
+    return $dt ? $dt->format('Y-m-d H:i:s') : null;
 }
 
-function next_event_id(array $events): int
-{
-    $max = 0;
-    foreach ($events as $event) {
-        $max = max($max, (int) ($event['id'] ?? 0));
-    }
-    return $max + 1;
-}
-
-function validate_event(array $input, ?string $existingIssueDateTime = null): array
+function validate_event_payload(array $input, ?string $forcedId = null): array
 {
     $errors = [];
 
-    $name = trim($input['name'] ?? '');
-    if ($name === '' || strlen($name) < 3) {
+    $id = $forcedId ?: generate_event_id();
+    $nome = trim($input['name'] ?? '');
+    $descrizione = trim($input['description'] ?? '');
+    $categoria = trim($input['category'] ?? '');
+    $organizzatore = trim($input['organizzatore'] ?? '');
+
+    if ($nome === '' || strlen($nome) < 3) {
         $errors[] = 'Il nome deve avere almeno 3 caratteri.';
     }
-
-    $description = trim($input['description'] ?? '');
-    if ($description === '' || strlen($description) < 10) {
+    if ($descrizione === '' || strlen($descrizione) < 10) {
         $errors[] = 'La descrizione deve avere almeno 10 caratteri.';
     }
-
-    $scope = trim($input['scope'] ?? '');
-    if ($scope === '') {
-        $errors[] = 'Lo scopo è obbligatorio.';
+    if ($categoria === '') {
+        $errors[] = 'La categoria è obbligatoria.';
+    }
+    if ($organizzatore === '') {
+        $errors[] = "L'organizzatore è obbligatorio.";
     }
 
-    $startInput = trim($input['startDateTime'] ?? '');
-    $endInput = trim($input['endDateTime'] ?? '');
-    $start = $startInput !== '' ? DateTime::createFromFormat('Y-m-d\TH:i', $startInput) : null;
-    $end = $endInput !== '' ? DateTime::createFromFormat('Y-m-d\TH:i', $endInput) : null;
-
-    if (!$start && $startInput !== '') {
-        try {
-            $start = new DateTime($startInput);
-        } catch (Exception $e) {
-            $start = null;
-        }
-    }
-
-    if (!$end && $endInput !== '') {
-        try {
-            $end = new DateTime($endInput);
-        } catch (Exception $e) {
-            $end = null;
-        }
-    }
-
+    $start = normalize_datetime($input['startDateTime'] ?? '');
+    $end = normalize_datetime($input['endDateTime'] ?? '');
     if (!$start) {
         $errors[] = 'Data/ora di inizio non valida.';
     }
     if (!$end) {
         $errors[] = 'Data/ora di fine non valida.';
     }
-    if ($start && $end && $start > $end) {
+    if ($start && $end && strtotime($start) > strtotime($end)) {
         $errors[] = 'La data di inizio deve precedere quella di fine.';
     }
 
-    $issueInput = trim($input['issueDateTime'] ?? '') ?: $existingIssueDateTime;
-    $issue = null;
-    if ($issueInput) {
-        try {
-            $issue = new DateTime($issueInput);
-        } catch (Exception $e) {
-            $errors[] = 'Data di emissione non valida.';
-        }
-    } else {
-        $issue = new DateTime();
-    }
-
-    $uri = trim($input['mediaResource_uri'] ?? '');
-    if (!filter_var($uri, FILTER_VALIDATE_URL)) {
-        $errors[] = 'Inserisci un URL valido per la risorsa media.';
-    }
-
-    $venueId = (int) ($input['venue_id'] ?? 1);
-    $venueName = trim($input['venue_name'] ?? '');
-    $street = trim($input['venue_street'] ?? '');
-    $city = trim($input['venue_city'] ?? '');
-    $province = trim($input['venue_province'] ?? '');
-    $zipcode = trim($input['venue_zipcode'] ?? '');
+    $via = trim($input['sede_via'] ?? '');
+    $cap = trim($input['sede_cap'] ?? '');
+    $paese = trim($input['sede_paese'] ?? '');
     foreach ([
-        'Nome luogo' => $venueName,
-        'Via' => $street,
-        'Città' => $city,
-        'Provincia' => $province,
-        'CAP' => $zipcode,
+        'Indirizzo della sede' => $via,
+        'CAP' => $cap,
+        'Paese' => $paese,
     ] as $label => $value) {
         if ($value === '') {
             $errors[] = $label . ' è obbligatorio.';
         }
     }
 
-    $email = trim($input['contact_email'] ?? '');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Email di contatto non valida.';
+    $accessibilita = [
+        'rampe' => isset($input['rampe']) ? 1 : 0,
+        'ascensori' => isset($input['ascensori']) ? 1 : 0,
+        'posti_disabili' => (int) ($input['posti_disabili'] ?? 0),
+    ];
+    if ($accessibilita['posti_disabili'] < 0) {
+        $errors[] = 'I posti riservati devono essere maggiori o uguali a zero.';
     }
 
-    $phone = trim($input['contact_phone'] ?? '');
-    if (!preg_match('/^[0-9\s+\-]{7,}$/', $phone)) {
-        $errors[] = 'Telefono di contatto non valido.';
+    $tariffe = [];
+    $tariffeTipo = $input['tariffe_tipo'] ?? [];
+    $tariffePrezzo = $input['tariffe_prezzo'] ?? [];
+    $tariffeValuta = $input['tariffe_valuta'] ?? [];
+    $rows = max(count($tariffeTipo), count($tariffePrezzo), count($tariffeValuta));
+    for ($i = 0; $i < $rows; $i++) {
+        $tipo = trim($tariffeTipo[$i] ?? '');
+        $prezzo = $tariffePrezzo[$i] ?? '';
+        $valuta = trim($tariffeValuta[$i] ?? '');
+        if ($tipo === '' && $prezzo === '' && $valuta === '') {
+            continue;
+        }
+        if ($tipo === '' || $prezzo === '' || $valuta === '') {
+            $errors[] = 'Ogni tariffa deve avere tipo, prezzo e valuta.';
+            continue;
+        }
+        if (!is_numeric($prezzo) || (float) $prezzo < 0) {
+            $errors[] = 'Il prezzo deve essere un numero maggiore o uguale a zero.';
+            continue;
+        }
+        $tariffe[] = [
+            'tipo' => $tipo,
+            'prezzo' => number_format((float) $prezzo, 2, '.', ''),
+            'valuta' => $valuta,
+        ];
     }
 
-    $event = [
-        'id' => isset($input['id']) ? (int) $input['id'] : null,
-        'name' => $name,
-        'description' => $description,
-        'scope' => $scope,
-        'startDateTime' => $start ? $start->format('c') : null,
-        'endDateTime' => $end ? $end->format('c') : null,
-        'issueDateTime' => $issue ? $issue->format('c') : null,
-        'mediaResource' => [
-            'uri' => $uri,
+    $orari = [];
+    $orariGiorno = $input['orari_giorno'] ?? [];
+    $orariApertura = $input['orari_apertura'] ?? [];
+    $orariChiusura = $input['orari_chiusura'] ?? [];
+    $orariRows = max(count($orariGiorno), count($orariApertura), count($orariChiusura));
+    for ($i = 0; $i < $orariRows; $i++) {
+        $giorno = trim($orariGiorno[$i] ?? '');
+        $apertura = trim($orariApertura[$i] ?? '');
+        $chiusura = trim($orariChiusura[$i] ?? '');
+        if ($giorno === '' && $apertura === '' && $chiusura === '') {
+            continue;
+        }
+        if ($giorno === '' || $apertura === '' || $chiusura === '') {
+            $errors[] = 'Ogni orario deve includere giorno, apertura e chiusura.';
+            continue;
+        }
+        if ($apertura >= $chiusura) {
+            $errors[] = "L'ora di apertura deve precedere quella di chiusura.";
+            continue;
+        }
+        $orari[] = [
+            'giorno' => $giorno,
+            'apertura' => $apertura,
+            'chiusura' => $chiusura,
+        ];
+    }
+
+    $multimedia = [];
+    $mediaTipo = $input['media_tipo'] ?? [];
+    $mediaUrl = $input['media_url'] ?? [];
+    $mediaDescrizione = $input['media_descrizione'] ?? [];
+    $mediaRows = max(count($mediaTipo), count($mediaUrl), count($mediaDescrizione));
+    for ($i = 0; $i < $mediaRows; $i++) {
+        $tipo = trim($mediaTipo[$i] ?? '');
+        $url = trim($mediaUrl[$i] ?? '');
+        $descr = trim($mediaDescrizione[$i] ?? '');
+        if ($tipo === '' && $url === '' && $descr === '') {
+            continue;
+        }
+        if ($tipo === '' || $url === '') {
+            $errors[] = 'Ogni elemento media richiede tipo e URL.';
+            continue;
+        }
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            $errors[] = 'Inserisci un URL valido per i contenuti multimediali.';
+            continue;
+        }
+        $multimedia[] = [
+            'tipo' => $tipo,
+            'url' => $url,
+            'descrizione' => $descr,
+        ];
+    }
+
+    $payload = [
+        'id' => $id,
+        'nome' => $nome,
+        'descrizione' => $descrizione,
+        'categoria' => $categoria,
+        'data_inizio' => $start,
+        'data_fine' => $end,
+        'organizzatore' => $organizzatore,
+        'sede' => [
+            'via' => $via,
+            'cap' => $cap,
+            'paese' => $paese,
         ],
-        'venue' => [
-            'id' => $venueId,
-            'name' => $venueName,
-            'address' => [
-                'street' => $street,
-                'city' => $city,
-                'province' => $province,
-                'zipcode' => $zipcode,
-            ],
-        ],
-        'contact' => [
-            'email' => $email,
-            'phone' => $phone,
-        ],
+        'accessibilita' => $accessibilita,
+        'tariffe' => $tariffe,
+        'orari' => $orari,
+        'multimedia' => $multimedia,
     ];
 
-    return [$errors, $event];
+    return [$errors, $payload];
 }
 
-function update_event(array $events, int $id, array $newData): array
+function list_events(): array
 {
-    foreach ($events as $index => $event) {
-        if ((int) ($event['id'] ?? 0) === $id) {
-            $events[$index] = $newData;
-            return $events;
-        }
+    $pdo = db();
+    $stmt = $pdo->query(
+        'SELECT e.id, e.nome, e.categoria, e.data_inizio, e.data_fine, e.organizzatore, ' .
+        's.via, s.cap, s.paese, ' .
+        '(SELECT COUNT(*) FROM tariffa t WHERE t.evento_id = e.id) AS tariffe_count, ' .
+        '(SELECT COUNT(*) FROM orario o WHERE o.evento_id = e.id) AS orari_count, ' .
+        '(SELECT COUNT(*) FROM multimedia m WHERE m.evento_id = e.id) AS media_count ' .
+        'FROM evento e ' .
+        'LEFT JOIN ente en ON e.organizzatore = en.nome ' .
+        'LEFT JOIN sede s ON en.id_indirizzo = s.id ' .
+        'ORDER BY e.data_inizio ASC'
+    );
+    return $stmt->fetchAll();
+}
+
+function fetch_event(string $id): ?array
+{
+    $pdo = db();
+    $stmt = $pdo->prepare(
+        'SELECT e.*, s.id AS sede_id, s.via, s.cap, s.paese ' .
+        'FROM evento e ' .
+        'LEFT JOIN ente en ON e.organizzatore = en.nome ' .
+        'LEFT JOIN sede s ON en.id_indirizzo = s.id ' .
+        'WHERE e.id = :id'
+    );
+    $stmt->execute(['id' => $id]);
+    $event = $stmt->fetch();
+    if (!$event) {
+        return null;
     }
-    return $events;
+
+    $accStmt = $pdo->prepare('SELECT * FROM accessibilita WHERE id = :id');
+    $accStmt->execute(['id' => $id]);
+    $access = $accStmt->fetch() ?: [
+        'rampe' => 0,
+        'ascensori' => 0,
+        'posti_disabili' => 0,
+    ];
+
+    $tariffe = $pdo->prepare('SELECT * FROM tariffa WHERE evento_id = :id ORDER BY id');
+    $tariffe->execute(['id' => $id]);
+
+    $orari = $pdo->prepare('SELECT * FROM orario WHERE evento_id = :id ORDER BY giorno, apertura');
+    $orari->execute(['id' => $id]);
+
+    $media = $pdo->prepare('SELECT * FROM multimedia WHERE evento_id = :id ORDER BY id');
+    $media->execute(['id' => $id]);
+
+    return [
+        'evento' => $event,
+        'accessibilita' => $access,
+        'tariffe' => $tariffe->fetchAll(),
+        'orari' => $orari->fetchAll(),
+        'multimedia' => $media->fetchAll(),
+    ];
 }
 
-function delete_event(array $events, int $id): array
+function create_event(array $input): array
 {
-    return array_values(array_filter($events, function ($event) use ($id) {
-        return (int) ($event['id'] ?? 0) !== $id;
-    }));
+    [$errors, $payload] = validate_event_payload($input);
+    if (!empty($errors)) {
+        return [$errors, null];
+    }
+
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare('INSERT INTO sede (via, cap, paese) VALUES (:via, :cap, :paese)');
+        $stmt->execute($payload['sede']);
+        $sedeId = (int) $pdo->lastInsertId();
+
+        $enteStmt = $pdo->prepare('INSERT INTO ente (nome, id_indirizzo) VALUES (:nome, :id_indirizzo)');
+        $enteStmt->execute([
+            'nome' => $payload['organizzatore'],
+            'id_indirizzo' => $sedeId,
+        ]);
+
+        $eventStmt = $pdo->prepare(
+            'INSERT INTO evento (id, nome, descrizione, categoria, data_inizio, data_fine, organizzatore) ' .
+            'VALUES (:id, :nome, :descrizione, :categoria, :data_inizio, :data_fine, :organizzatore)'
+        );
+        $eventStmt->execute([
+            'id' => $payload['id'],
+            'nome' => $payload['nome'],
+            'descrizione' => $payload['descrizione'],
+            'categoria' => $payload['categoria'],
+            'data_inizio' => $payload['data_inizio'],
+            'data_fine' => $payload['data_fine'],
+            'organizzatore' => $payload['organizzatore'],
+        ]);
+
+        $accStmt = $pdo->prepare(
+            'INSERT INTO accessibilita (id, rampe, ascensori, posti_disabili) VALUES (:id, :rampe, :ascensori, :posti)'
+        );
+        $accStmt->execute([
+            'id' => $payload['id'],
+            'rampe' => $payload['accessibilita']['rampe'],
+            'ascensori' => $payload['accessibilita']['ascensori'],
+            'posti' => $payload['accessibilita']['posti_disabili'],
+        ]);
+
+        if (!empty($payload['tariffe'])) {
+            $tarStmt = $pdo->prepare(
+                'INSERT INTO tariffa (evento_id, tipo, prezzo, valuta) VALUES (:evento_id, :tipo, :prezzo, :valuta)'
+            );
+            foreach ($payload['tariffe'] as $t) {
+                $tarStmt->execute([
+                    'evento_id' => $payload['id'],
+                    'tipo' => $t['tipo'],
+                    'prezzo' => $t['prezzo'],
+                    'valuta' => $t['valuta'],
+                ]);
+            }
+        }
+
+        if (!empty($payload['orari'])) {
+            $oraStmt = $pdo->prepare(
+                'INSERT INTO orario (evento_id, giorno, apertura, chiusura) VALUES (:evento_id, :giorno, :apertura, :chiusura)'
+            );
+            foreach ($payload['orari'] as $o) {
+                $oraStmt->execute([
+                    'evento_id' => $payload['id'],
+                    'giorno' => $o['giorno'],
+                    'apertura' => $o['apertura'],
+                    'chiusura' => $o['chiusura'],
+                ]);
+            }
+        }
+
+        if (!empty($payload['multimedia'])) {
+            $mediaStmt = $pdo->prepare(
+                'INSERT INTO multimedia (evento_id, tipo, url, descrizione) VALUES (:evento_id, :tipo, :url, :descrizione)'
+            );
+            foreach ($payload['multimedia'] as $m) {
+                $mediaStmt->execute([
+                    'evento_id' => $payload['id'],
+                    'tipo' => $m['tipo'],
+                    'url' => $m['url'],
+                    'descrizione' => $m['descrizione'],
+                ]);
+            }
+        }
+
+        $pdo->commit();
+        return [[], $payload['id']];
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return [["Errore durante il salvataggio: " . $e->getMessage()], null];
+    }
+}
+
+function update_event_record(string $id, array $input): array
+{
+    $existing = fetch_event($id);
+    if (!$existing) {
+        return [["Evento non trovato."], null];
+    }
+
+    [$errors, $payload] = validate_event_payload($input, $id);
+    if (!empty($errors)) {
+        return [$errors, null];
+    }
+
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+
+        $pdo->prepare('UPDATE sede SET via = :via, cap = :cap, paese = :paese WHERE id = :id')
+            ->execute([
+                'via' => $payload['sede']['via'],
+                'cap' => $payload['sede']['cap'],
+                'paese' => $payload['sede']['paese'],
+                'id' => $existing['evento']['sede_id'],
+            ]);
+
+        $pdo->prepare('UPDATE ente SET nome = :nome WHERE nome = :old_nome')
+            ->execute([
+                'nome' => $payload['organizzatore'],
+                'old_nome' => $existing['evento']['organizzatore'],
+            ]);
+
+        $pdo->prepare(
+            'UPDATE evento SET nome = :nome, descrizione = :descrizione, categoria = :categoria, ' .
+            'data_inizio = :data_inizio, data_fine = :data_fine, organizzatore = :organizzatore WHERE id = :id'
+        )->execute([
+            'nome' => $payload['nome'],
+            'descrizione' => $payload['descrizione'],
+            'categoria' => $payload['categoria'],
+            'data_inizio' => $payload['data_inizio'],
+            'data_fine' => $payload['data_fine'],
+            'organizzatore' => $payload['organizzatore'],
+            'id' => $id,
+        ]);
+
+        $pdo->prepare(
+            'INSERT INTO accessibilita (id, rampe, ascensori, posti_disabili) VALUES (:id, :rampe, :ascensori, :posti) ' .
+            'ON DUPLICATE KEY UPDATE rampe = VALUES(rampe), ascensori = VALUES(ascensori), posti_disabili = VALUES(posti_disabili)'
+        )->execute([
+            'id' => $id,
+            'rampe' => $payload['accessibilita']['rampe'],
+            'ascensori' => $payload['accessibilita']['ascensori'],
+            'posti' => $payload['accessibilita']['posti_disabili'],
+        ]);
+
+        $pdo->prepare('DELETE FROM tariffa WHERE evento_id = :id')->execute(['id' => $id]);
+        if (!empty($payload['tariffe'])) {
+            $stmt = $pdo->prepare('INSERT INTO tariffa (evento_id, tipo, prezzo, valuta) VALUES (:evento_id, :tipo, :prezzo, :valuta)');
+            foreach ($payload['tariffe'] as $t) {
+                $stmt->execute([
+                    'evento_id' => $id,
+                    'tipo' => $t['tipo'],
+                    'prezzo' => $t['prezzo'],
+                    'valuta' => $t['valuta'],
+                ]);
+            }
+        }
+
+        $pdo->prepare('DELETE FROM orario WHERE evento_id = :id')->execute(['id' => $id]);
+        if (!empty($payload['orari'])) {
+            $stmt = $pdo->prepare('INSERT INTO orario (evento_id, giorno, apertura, chiusura) VALUES (:evento_id, :giorno, :apertura, :chiusura)');
+            foreach ($payload['orari'] as $o) {
+                $stmt->execute([
+                    'evento_id' => $id,
+                    'giorno' => $o['giorno'],
+                    'apertura' => $o['apertura'],
+                    'chiusura' => $o['chiusura'],
+                ]);
+            }
+        }
+
+        $pdo->prepare('DELETE FROM multimedia WHERE evento_id = :id')->execute(['id' => $id]);
+        if (!empty($payload['multimedia'])) {
+            $stmt = $pdo->prepare('INSERT INTO multimedia (evento_id, tipo, url, descrizione) VALUES (:evento_id, :tipo, :url, :descrizione)');
+            foreach ($payload['multimedia'] as $m) {
+                $stmt->execute([
+                    'evento_id' => $id,
+                    'tipo' => $m['tipo'],
+                    'url' => $m['url'],
+                    'descrizione' => $m['descrizione'],
+                ]);
+            }
+        }
+
+        $pdo->commit();
+        return [[], $id];
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return [["Errore durante l'aggiornamento: " . $e->getMessage()], null];
+    }
+}
+
+function delete_event_record(string $id): bool
+{
+    $meta = fetch_event($id);
+    if (!$meta) {
+        return false;
+    }
+
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+        $pdo->prepare('DELETE FROM evento WHERE id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM ente WHERE nome = :nome')->execute(['nome' => $meta['evento']['organizzatore']]);
+        if (!empty($meta['evento']['sede_id'])) {
+            $pdo->prepare('DELETE FROM sede WHERE id = :id')->execute(['id' => $meta['evento']['sede_id']]);
+        }
+        $pdo->commit();
+        return true;
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return false;
+    }
 }

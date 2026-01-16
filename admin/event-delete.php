@@ -8,23 +8,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-if (!$id) {
+$id = isset($_POST['id']) ? (string) $_POST['id'] : '';
+if ($id === '') {
     add_flash('error', 'ID evento mancante.');
     header('Location: /admin/dashboard.php');
     exit;
 }
 
-$events = load_events();
-$before = count($events);
-$events = delete_event($events, $id);
-$after = count($events);
-
-if ($after === $before) {
-    add_flash('error', 'Evento non trovato.');
-} else {
-    save_events($events);
+if (delete_event_record($id)) {
     add_flash('success', 'Evento eliminato.');
+} else {
+    add_flash('error', 'Evento non trovato.');
 }
 
 header('Location: /admin/dashboard.php');

@@ -23,8 +23,7 @@ function render_admin_shell_start(string $title, string $active): void
     echo '<div class="flex min-h-screen">';
     echo '<aside class="w-64 bg-white shadow-sm border-r border-slate-200 hidden md:block">';
     echo '<div class="p-6 border-b border-slate-100">';
-    echo '<h1 class="text-xl font-semibold text-slate-800">Event Admin</h1>';
-    echo '<p class="text-xs text-slate-500 mt-1">Gestione eventi istituzionali</p>';
+    echo '<h1 class="text-xl font-semibold text-slate-800">Gestione eventi</h1>';
     echo '</div>';
     echo '<nav class="p-4 space-y-1">';
     $links = [
@@ -42,16 +41,10 @@ function render_admin_shell_start(string $title, string $active): void
         echo '</a>';
     }
     echo '</nav>';
-    if ($user) {
-        echo '<div class="p-4 border-t border-slate-100 text-sm text-slate-600">';
-        echo 'Loggato come <span class="font-semibold text-slate-800">' . htmlspecialchars($user['username']) . '</span>';
-        echo '</div>';
-    }
     echo '</aside>';
 
     echo '<div class="flex-1 flex flex-col">';
     echo '<header class="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-sm">';
-    echo '<div class="font-semibold text-slate-800">Event Admin</div>';
     echo '<button id="mobile-menu-btn" class="p-2 rounded-md border border-slate-200 text-slate-700" aria-label="Apri menu">';
     echo '<span class="sr-only">Apri menu</span>';
     echo '&#9776;';
