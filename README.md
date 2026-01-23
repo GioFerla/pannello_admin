@@ -1,12 +1,14 @@
 # Pannello Amministrazione Eventi (Docker)
 
-Applicazione full‑stack PHP + Apache con frontend Tailwind CSS e database MariaDB/MySQL orchestrata via Docker Compose. Include login, CRUD completo e gestione relazioni secondo il modello ER fornito.
+Applicazione full‑stack PHP + Apache con frontend Tailwind CSS e database MariaDB/MySQL orchestrata via Docker Compose. Include login, CRUD completo e gestione relazioni secondo il modello ER fornit[...]
 
 ## Indice
 - [Architettura](#architettura)
 - [Database](#database)
 - [Avvio rapido](#avvio-rapido)
 - [Struttura cartelle](#struttura-cartelle)
+- [Documentazione JavaScript (app.js)](#documentazione-javascript-assetsjsappjs)
+- [Dettagli funzioni CRUD (includes/data.php)](#dettagli-funzioni-crud-includesdataphp)
 - [Workflow](#workflow)
 - [Variabili d'ambiente principali](#variabili-dambiente-principali)
 - [Note](#note)
@@ -64,6 +66,90 @@ Credenziali admin (configurabili via env): `admin` / `admin123`
 - `assets/js/app.js` — menu mobile, toast, modale, repeater, validazione client
 - `docker/` — `db/init.sql` per schema + dati
 - `docker-compose.yml`, `Dockerfile`
+
+## Documentazione JavaScript (assets/js/app.js)
+
+Il file `assets/js/app.js` gestisce l'interazione lato client del pannello admin, in particolare:
+- **Repeater** (sezioni ripetibili) per Tariffe, Orari e Multimedia
+- **Toast** (messaggi di feedback) e gestione UI correlata
+- **Modale di conferma eliminazione** (apertura/chiusura + popolamento campi)
+- (eventuali) comportamenti UI come menu mobile o utility
+
+### Repeater (sezioni ripetibili)
+
+I repeater servono a permettere l'inserimento di liste di valori che il backend riceve come array tramite input con suffisso `[]`, ad esempio:
+- `tariffe_tipo[]`, `tariffe_prezzo[]`, `tariffe_valuta[]`
+- `orari_giorno[]`, `orari_apertura[]`, `orari_chiusura[]`
+- `media_tipo[]`, `media_url[]`, `media_descrizione[]`
+
+#### Logica di base (come funziona)
+
+Il comportamento tipico è:
+1. Esiste un **template** (una “riga” o “blocco” HTML) da duplicare.
+2. Quando l'utente clicca “Aggiungi”:
+   - il JS **clona** il template,
+   - **pulisce i valori** (input vuoti, checkbox deselezionate, ecc.),
+   - e **appende** la nuova riga al container del repeater.
+3. Quando l'utente clicca “Rimuovi” su una riga:
+   - il JS rimuove il nodo dal DOM.
+
+> Importante: se il repeater JS si rompe, il backend potrebbe **non ricevere gli array corretti** (campi mancanti, righe non aggiunte/rimosse), causando errori di validazione o dati incompleti.
+
+#### Indici e name degli input
+
+La strategia più robusta è mantenere `name="campo[]"` (senza indici espliciti):
+- PHP ricostruisce automaticamente gli array in base all'ordine dei campi inviati.
+- Non è necessario “rinumerare” gli indici a ogni modifica, perché l'array risultante sarà comunque coerente in POST.
+
+Se invece venissero usati name indicizzati (es. `campo[0]`, `campo[1]`), allora il JS dovrebbe anche:
+- aggiornare gli indici dopo ogni add/remove,
+- per evitare “buchi” o associazioni errate.
+
+### Modale di eliminazione (Delete Modal)
+
+La dashboard mostra un pulsante “Elimina” (tipicamente con attributi `data-*` come `data-id` e `data-name`).
+Il JS:
+1. intercetta il click sul pulsante elimina,
+2. apre la modale,
+3. inserisce il nome evento nell'elemento dedicato (es. `#delete-event-name`),
+4. valorizza l'input hidden con l'ID (es. `#delete-event-id`),
+5. al submit del form, viene inviata una POST allo script di delete.
+
+### Toast / Messaggi UI
+
+I toast (o banner) servono a mostrare feedback non bloccanti (success/error/info).
+In genere il backend imposta messaggi flash e il frontend li rende; il JS può occuparsi di:
+- auto-hide dopo N secondi,
+- chiusura manuale,
+- transizioni CSS.
+
+## Dettagli funzioni CRUD (includes/data.php)
+
+Il file `includes/data.php` contiene le funzioni di accesso ai dati (PDO) e le operazioni CRUD principali sugli eventi e sulle tabelle correlate (tariffe, orari, multimedia, accessibilità, ecc.).
+
+### Tabella rapida: firme e valori di ritorno
+
+| Funzione | Scopo | Argomenti | Ritorno |
+|---------|------|-----------|---------|
+| `list_events()` | Elenca gli eventi per la dashboard (con conteggi correlati) | — | `array $events` |
+| `fetch_event(string $id)` | Recupera un evento + record correlati (accessibilità, tariffe, orari, media) | `$id` | `array|null` (bundle dati o `null` se non trovato) |
+| `create_event(array $data)` | Crea evento e tabelle collegate | `$data` (tipicamente `$_POST`) | `array [$errors, $newId]` dove: `array $errors`, `int|string|null $newId` |
+| `update_event_record(string $id, array $data)` | Aggiorna evento e tabelle collegate | `$id`, `$data` | `array [$errors, $updatedId]` dove: `array $errors`, `int|string|null $updatedId` |
+| `delete_event_record(string $id)` | Elimina evento (e cascata su tabelle correlate se configurato) | `$id` | `bool` (`true` se eliminato, `false` se non trovato/errore) |
+
+> Nota: i tipi esatti di `$newId`/`$updatedId` dipendono dal tipo della PK nel DB e dall'implementazione PDO (potrebbe essere `int` o `string`). Se l'ID è un `AUTO_INCREMENT`, tipicamente è un `int`.
+
+### Convenzioni di validazione (attese)
+
+In generale, `create_event()` e `update_event_record()`:
+- validano i campi obbligatori (nome, date, ecc.)
+- validano coerenza dei repeater (array con lunghezze compatibili, valori numerici per prezzi, URL validi per media, ecc.)
+- eseguono query con prepared statements (PDO) per evitare SQL injection
+- usano transazioni se devono aggiornare più tabelle in modo atomico (consigliato)
+
+Se ci sono errori:
+- `$errors` contiene messaggi user-friendly
+- la pagina PHP ripopola il form con i valori inviati e mostra gli errori in alto
 
 ## Workflow
 1. Login.
@@ -170,11 +256,11 @@ exit;
 - Metodo POST obbligatorio: previene eliminazioni accidentali via link GET.
 - Validazione input: controlla che l'ID sia presente prima di procedere.
 - Type casting: converte l'ID in stringa per coerenza.
-- Consigli aggiuntivi: usare controlli di autorizzazione (ruoli/permessi) se presenti, loggare operazioni sensibili e usare transazioni in `delete_event_record()` se la cancellazione coinvolge più tabelle.
+- Consigli aggiuntivi: usare controlli di autorizzazione (ruoli/permessi) se presenti, loggare operazioni sensibili e usare transazioni in `delete_event_record()` se la cancellazione coinvolge più ta[...]
 
 ## Panoramica — Modifica Evento
 
-Questa sezione descrive lo script che mostra e processa il form di modifica di un evento. Lo script combina caricamento dati esistenti, visualizzazione form con sezioni ripetibili e salvataggio delle modifiche.
+Questa sezione descrive lo script che mostra e processa il form di modifica di un evento. Lo script combina caricamento dati esistenti, visualizzazione form con sezioni ripetibili e salvataggio delle [...]
 
 ### Posizione file
 `/admin/edit_event.php` (o percorso equivalente nella directory `admin`)
@@ -316,7 +402,7 @@ $events = list_events();
 render_admin_shell_start('Lista eventi', 'dashboard');
 ```
 
-- `list_events()` fornisce una lista di eventi; ogni elemento contiene campi come `id`, `nome`, `categoria`, `data_inizio`, `data_fine`, `via`, `cap`, `paese`, `organizzatore` e conteggi `tariffe_count`, `orari_count`, `media_count`.
+- `list_events()` fornisce una lista di eventi; ogni elemento contiene campi come `id`, `nome`, `categoria`, `data_inizio`, `data_fine`, `via`, `cap`, `paese`, `organizzatore` e conteggi `tariffe_coun[...]
 
 2. Rendering della lista
 
@@ -346,7 +432,7 @@ render_admin_shell_start('Lista eventi', 'dashboard');
   - Form con id `delete-form` che punta a `/admin/event-delete.php` (metodo POST) — include input hidden `id` con id `delete-event-id`
   - Pulsante `data-close-modal` per chiudere la modal
 
-- Il comportamento del pulsante Elimina nella tabella è gestito dal JavaScript client (in `assets/js/app.js`), che apre la modal, popola `#delete-event-name` e `#delete-event-id`, e permette l'invio del form per eseguire la cancellazione.
+- Il comportamento del pulsante Elimina nella tabella è gestito dal JavaScript client (in `assets/js/app.js`), che apre la modal, popola `#delete-event-name` e `#delete-event-id`, e permette l'invio [...]
 
 ### Sicurezza & validazione lato server
 
