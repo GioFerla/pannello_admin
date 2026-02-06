@@ -29,8 +29,8 @@ function require_login(): void
 
 function attempt_login(string $username, string $password): bool
 {
-    $cfg = require __DIR__ . '/config.php';
-    if ($username === $cfg['admin_user']['username'] && $password === $cfg['admin_user']['password']) {
+    $admin = load_admin_credentials();
+    if ($admin && $username === $admin['username'] && password_verify($password, $admin['password_hash'])) {
         $_SESSION['user'] = [
             'username' => $username,
             'logged_in_at' => date('c'),
@@ -38,6 +38,26 @@ function attempt_login(string $username, string $password): bool
         return true;
     }
     return false;
+}
+
+function load_admin_credentials(): ?array
+{
+    $file = __DIR__ . '/../data/admin.json';
+    if (!is_file($file)) {
+        return null;
+    }
+    $raw = file_get_contents($file);
+    if ($raw === false) {
+        return null;
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        return null;
+    }
+    if (!isset($data['username'], $data['password_hash'])) {
+        return null;
+    }
+    return $data;
 }
 
 function logout_user(): void

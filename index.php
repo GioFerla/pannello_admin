@@ -62,7 +62,7 @@ $authRequired = isset($_GET['auth']);
         </div>
         <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-200">Accedi</button>
       </form>
-      <p class="mt-6 text-xs text-slate-500">Default: admin / admin123. Modifica in includes/config.php.</p>
+      <p class="mt-6 text-xs text-slate-500">Default: admin / admin123. Modifica in data/admin.json.</p>
     </div>
   </div>
 </body>

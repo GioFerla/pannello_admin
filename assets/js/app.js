@@ -77,18 +77,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const category = form.querySelector('[name="category"]');
       const start = form.querySelector('[name="startDateTime"]');
       const end = form.querySelector('[name="endDateTime"]');
-      const organizzatore = form.querySelector('[name="organizzatore"]');
+      const sedeNome = form.querySelector('[name="sede_nome"]');
       const sedeVia = form.querySelector('[name="sede_via"]');
-      const sedeCap = form.querySelector('[name="sede_cap"]');
-      const sedePaese = form.querySelector('[name="sede_paese"]');
+      const sedeCitta = form.querySelector('[name="sede_citta"]');
+      const sedeProvincia = form.querySelector('[name="sede_provincia"]');
+      const contattoEmail = form.querySelector('[name="contatto_email"]');
 
       if (name && name.value.trim().length < 3) errors.push('Il nome deve avere almeno 3 caratteri.');
       if (desc && desc.value.trim().length < 10) errors.push('La descrizione deve avere almeno 10 caratteri.');
-      if (category && category.value.trim() === '') errors.push('Seleziona una categoria.');
-      if (organizzatore && organizzatore.value.trim() === '') errors.push("Indica l'organizzatore.");
-      if (sedeVia && sedeVia.value.trim() === '') errors.push('Inserisci la sede.');
-      if (sedeCap && sedeCap.value.trim() === '') errors.push('Inserisci il CAP.');
-      if (sedePaese && sedePaese.value.trim() === '') errors.push('Inserisci il paese.');
+      if (category && category.value.trim() === '') errors.push("Inserisci l'ambito.");
+      if (sedeNome && sedeNome.value.trim() === '') errors.push('Inserisci il nome della sede.');
+      if (sedeVia && sedeVia.value.trim() === '') errors.push('Inserisci l\'indirizzo della sede.');
+      if (sedeCitta && sedeCitta.value.trim() === '') errors.push('Inserisci la città.');
+      if (sedeProvincia && sedeProvincia.value.trim() === '') errors.push('Inserisci la provincia.');
+      if (contattoEmail && contattoEmail.value.trim() === '') errors.push('Inserisci la email di contatto.');
+      if (contattoEmail && contattoEmail.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contattoEmail.value.trim())) {
+        errors.push('Inserisci una email valida.');
+      }
 
       const startVal = start?.value;
       const endVal = end?.value;
@@ -100,23 +105,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (startDate > endDate) errors.push('La data di inizio deve precedere quella di fine.');
       }
 
-      const tariffaTypes = form.querySelectorAll('[name="tariffe_tipo[]"]');
-      const tariffaPrices = form.querySelectorAll('[name="tariffe_prezzo[]"]');
-      const tariffaCurrency = form.querySelectorAll('[name="tariffe_valuta[]"]');
-      tariffaTypes.forEach((el, idx) => {
-        const t = el.value.trim();
-        const p = tariffaPrices[idx]?.value.trim();
-        const v = tariffaCurrency[idx]?.value.trim();
-        if (t || p || v) {
-          if (!t || !p || !v) errors.push('Completa tutti i campi tariffa.');
-          if (p && Number.isNaN(Number(p))) errors.push('Il prezzo deve essere numerico.');
-        }
-      });
-
-      const mediaUrl = form.querySelectorAll('[name="media_url[]"]');
-      mediaUrl.forEach((input) => {
-        if (input.value.trim() && !/^https?:\/\//i.test(input.value.trim())) {
-          errors.push('Inserisci URL validi per i media.');
+      const mediaNames = form.querySelectorAll('[name="media_nome[]"]');
+      const mediaTypes = form.querySelectorAll('[name="media_tipo[]"]');
+      const mediaUrls = form.querySelectorAll('[name="media_url[]"]');
+      mediaNames.forEach((el, idx) => {
+        const n = el.value.trim();
+        const t = mediaTypes[idx]?.value.trim();
+        const u = mediaUrls[idx]?.value.trim();
+        if (n || t || u) {
+          if (!n || !t || !u) errors.push('Completa nome, tipo e URL per i media.');
+          if (u && !/^https?:\/\//i.test(u)) errors.push('Inserisci URL validi per i media.');
         }
       });
 

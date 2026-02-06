@@ -1,45 +1,37 @@
-# Pannello Amministrazione Eventi (Docker)
+# Pannello Amministrazione Eventi
 
-Applicazione full-stack PHP + Apache con frontend Tailwind CSS e database MariaDB/MySQL orchestrata via Docker Compose. Include login, CRUD completo e gestione relazioni secondo il modello ER fornito.
+Applicazione PHP con frontend Tailwind CSS e database MySQL/MariaDB esterno. Include login, CRUD completo e gestione relazioni secondo il modello ER fornito.
 
-## Architettura
-- **web**: PHP 8.2 + Apache, PDO MySQL, Tailwind via CDN.
-- **db**: MariaDB 11 con volume persistente e bootstrap SQL (`docker/db/init.sql`).
-- **Frontend**: form responsive con repeater per tariffe, orari e media; toast e modale conferma.
-- **Backend**: PDO, transazioni, validazione server-side; CRUD su EVENTO, ENTE, SEDE, TARIFFA, ORARIO, MULTIMEDIA, ACCESSIBILITA.
+## Requisiti
+- PHP 8.x con estensione PDO MySQL
+- Server web locale (es. Apache/XAMPP)
+- Database MySQL/MariaDB raggiungibile via IP pubblico
 
 ## Database
-Schema in `docker/db/init.sql` con chiavi primarie/esterne e `ON DELETE CASCADE` dove sensato. Tabelle: EVENTO, ENTE, SEDE, ACCESSIBILITA (1:1), TARIFFA/ORARIO/MULTIMEDIA (1:N). Dati esempio inclusi.
+Lo schema aggiornato è disponibile in `data/eventi_db.sql`. Importalo nel tuo DB esterno (database `eventi_db`).
 
-## Avvio rapido
-```bash
-docker-compose up --build
-```
-- App: http://localhost:8080
-- DB: localhost:3306 (user/password: pannello/pannello, db: pannello)
+## Configurazione
+Imposta le credenziali del DB in `includes/config.php` oppure tramite variabili d'ambiente:
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 
-Credenziali admin (configurabili via env): `admin` / `admin123`.
+Le credenziali admin sono salvate localmente in `data/admin.json` (password hash). Modificalo se necessario.
+
+### SSH forwarding (DB remoto)
+Se il server DB è accessibile solo via SSH, crea un tunnel e usa il DB in locale:
+1. Avvia il tunnel:
+	`ssh -L 3306:localhost:3306 esercitazioni.online`
+2. Imposta `DB_HOST=127.0.0.1` (già nel file .env).
+3. Mantieni aperta la sessione SSH mentre usi l'app.
+
+## Avvio
+Apri il progetto nel tuo server web locale e visita la homepage dell'app.
 
 ## Struttura cartelle
 - index.php — login
 - admin/ — dashboard, create, edit, delete
-- includes/ — sessione, config env-based, PDO, validazione/CRUD, layout
+- includes/ — sessione, config, PDO, validazione/CRUD, layout
 - assets/js/app.js — menu mobile, toast, modale, repeater, validazione client
-- docker/ — `db/init.sql` per schema+dati
-- docker-compose.yml, Dockerfile
-
-## Workflow
-1. Login.
-2. Dashboard con conteggi tariffe/orari/media, edit/delete.
-3. Creazione/modifica con sezioni: dettagli evento, ente+sede, accessibilità, tariffe, orari, media.
-4. Eliminazione con conferma modale.
-
-## Variabili d'ambiente principali
-Configurate in `docker-compose.yml` per il servizio `web`:
-- `APP_ADMIN_USER`, `APP_ADMIN_PASS`
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- data/eventi_db.sql — schema database
 
 ## Note
-- Per modificare lo schema iniziale, aggiorna `docker/db/init.sql` e ricrea i container.
-- I dati persistono nel volume `db_data`.
 - Tailwind è fornito da CDN per semplicità.

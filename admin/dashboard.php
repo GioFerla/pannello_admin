@@ -23,37 +23,38 @@ render_admin_shell_start('Lista eventi', 'dashboard');
         <tr>
           <th class="px-4 py-3 text-left">Evento</th>
           <th class="px-4 py-3 text-left">Periodo</th>
-          <th class="px-4 py-3 text-left">Luogo</th>
-          <th class="px-4 py-3 text-left">Organizzatore</th>
-          <th class="px-4 py-3 text-left">Dataset</th>
+          <th class="px-4 py-3 text-left">Sede</th>
+          <th class="px-4 py-3 text-left">Contatto</th>
+          <th class="px-4 py-3 text-left">Media</th>
           <th class="px-4 py-3 text-right">Azioni</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100 bg-white">
         <?php if (empty($events)): ?>
           <tr>
-            <td colspan="5" class="px-4 py-6 text-center text-slate-500">Nessun evento presente. Crea il primo.</td>
+            <td colspan="6" class="px-4 py-6 text-center text-slate-500">Nessun evento presente. Crea il primo.</td>
           </tr>
         <?php else: ?>
           <?php foreach ($events as $event): ?>
             <tr class="hover:bg-slate-50">
               <td class="px-4 py-4">
                 <div class="font-semibold text-slate-800"><?php echo htmlspecialchars($event['nome']); ?></div>
-                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['categoria']); ?></div>
+                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['ambito'] ?? ''); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
                 <?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($event['data_inizio']))); ?>
                 <div class="text-xs text-slate-500">&rarr; <?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($event['data_fine']))); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
+                <div class="font-medium text-slate-800"><?php echo htmlspecialchars($event['sede_nome'] ?? ''); ?></div>
                 <div><?php echo htmlspecialchars($event['via'] ?? ''); ?></div>
-                <div class="text-xs text-slate-500"><?php echo htmlspecialchars(($event['cap'] ?? '') . ' ' . ($event['paese'] ?? '')); ?></div>
+                <div class="text-xs text-slate-500"><?php echo htmlspecialchars(($event['citta'] ?? '') . ' ' . ($event['provincia'] ?? '')); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
-                <div class="font-medium text-slate-800"><?php echo htmlspecialchars($event['organizzatore']); ?></div>
+                <div class="font-medium text-slate-800"><?php echo htmlspecialchars($event['email'] ?? ''); ?></div>
+                <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['telefono'] ?? ''); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
-                <div class="text-xs text-slate-500">Tariffe: <?php echo (int) $event['tariffe_count']; ?> | Orari: <?php echo (int) $event['orari_count']; ?></div>
                 <div class="text-xs text-slate-500">Media: <?php echo (int) $event['media_count']; ?></div>
               </td>
               <td class="px-4 py-4 text-right text-sm">
