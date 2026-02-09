@@ -13,17 +13,17 @@ services:
     environment:
       - DB_HOST=ssh_tunnel  # <-- IMPORTANTE: Punta al container del tunnel
       - DB_PORT=3307
-      - DB_USER=classe
-      - DB_PASS=     # Inserisci la password qui o gestiscila nel codice
-      - DB_NAME=     # Inserisci il nome del DB
+      - DB_USER=db_user_example
+      - DB_PASS=db_password_example
+      - DB_NAME=example_events_db
 
   ssh_tunnel:
     build:
       context: ./ssh_tunnel
     environment:
-      - SSH_HOST=esercitazioni.online
-      - SSH_USER=erba
-      - SSH_PASS=pallepalle123
+      - SSH_HOST=ssh.example.com
+      - SSH_USER=example_user
+      - SSH_PASS=example_ssh_password
       - REMOTE_PORT=8101
     # La porta 3307 è accessibile internamente agli altri container (come pannello_admin)
     # Non è strettamente necessario mapparla fuori ("3307:3307") a meno che tu non voglia connetterti dal tuo PC host.

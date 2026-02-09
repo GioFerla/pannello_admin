@@ -1,2 +1,4 @@
 .github/copilot-instructions.md
 .env
+*.local.php
+config.local.php

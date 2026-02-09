@@ -54,7 +54,7 @@ $authRequired = isset($_GET['auth']);
       <form method="POST" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700" for="username">Username</label>
-          <input id="username" name="username" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring focus:ring-blue-100" placeholder="admin">
+          <input id="username" name="username" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring focus:ring-blue-100" placeholder="demo_admin">
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700" for="password">Password</label>
@@ -62,7 +62,7 @@ $authRequired = isset($_GET['auth']);
         </div>
         <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-200">Accedi</button>
       </form>
-      <p class="mt-6 text-xs text-slate-500">Default: admin / admin123. Modifica in data/admin.json.</p>
+      <p class="mt-6 text-xs text-slate-500">⚠️ Le credenziali di default sono solo esempi (demo_admin / demo_password_123). Configura le tue credenziali reali in un file .env nella directory src/.</p>
     </div>
   </div>
 </body>
