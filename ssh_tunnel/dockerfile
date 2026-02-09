@@ -1,0 +1,10 @@
+FROM alpine:3.19
+
+# Install autossh, openssh-client, and sshpass
+RUN apk add --no-cache autossh openssh-client sshpass
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
+
+ENTRYPOINT ["/entrypoint.sh"]

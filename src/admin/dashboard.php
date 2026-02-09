@@ -55,7 +55,29 @@ render_admin_shell_start('Lista eventi', 'dashboard');
                 <div class="text-xs text-slate-500"><?php echo htmlspecialchars($event['telefono'] ?? ''); ?></div>
               </td>
               <td class="px-4 py-4 text-sm text-slate-700">
-                <div class="text-xs text-slate-500">Media: <?php echo (int) $event['media_count']; ?></div>
+                <div class="text-xs text-slate-500 mb-1">Media: <?php echo (int) $event['media_count']; ?></div>
+                <?php
+                  // Recupera i media associati all'evento
+                  $media = [];
+                  if (function_exists('fetch_event')) {
+                    $bundle = fetch_event($event['id']);
+                    $media = $bundle['multimedia'] ?? [];
+                  }
+                  foreach ($media as $m) {
+                    $type = strtolower($m['tipoFile'] ?? '');
+                    $url = $m['url'] ?? '';
+                    // YouTube link
+                    if (preg_match('/(?:youtu.be\/|youtube.com\/(?:watch\?v=|embed\/|v\/))([\w-]+)/', $url)) {
+                      echo '<a href="'.htmlspecialchars($url).'" target="_blank" style="display:inline-block;margin:2px;color:#c00;font-weight:bold;">YouTube</a>';
+                    } elseif (strpos($type, 'image') !== false) {
+                      echo '<img src="'.htmlspecialchars($url).'" alt="'.htmlspecialchars($m['nome']).'" style="max-width:60px;max-height:60px;object-fit:cover;margin:2px;border-radius:4px;display:inline-block;">';
+                    } elseif (strpos($type, 'video') !== false) {
+                      echo '<video src="'.htmlspecialchars($url).'" style="max-width:60px;max-height:60px;object-fit:cover;margin:2px;display:inline-block;" controls></video>';
+                    } elseif ($url) {
+                      echo '<a href="'.htmlspecialchars($url).'" target="_blank" style="display:inline-block;margin:2px;">'.htmlspecialchars($m['nome']).'</a>';
+                    }
+                  }
+                ?>
               </td>
               <td class="px-4 py-4 text-right text-sm">
                 <a href="/admin/event-edit.php?id=<?php echo urlencode($event['id']); ?>" class="inline-flex items-center px-3 py-2 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50">Modifica</a>
