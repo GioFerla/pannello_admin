@@ -1,6 +1,36 @@
 # Gestione Media nel Gestionale
 
-Questo gestionale permette di associare contenuti multimediali (immagini, video, link, ecc.) agli eventi. Di seguito trovi una guida dettagliata su come funziona l’implementazione dei media, con esempi di codice e spiegazioni.
+Questo gestionale permette di associare contenuti multimediali (immagini, video, link, ecc.) agli eventi. Di seguito trovi una guida dettagliata su come funziona l'implementazione dei media, con esempi di codice e spiegazioni.
+
+## ⚠️ Nota sulla Sicurezza
+
+**IMPORTANTE**: Le credenziali mostrate in questo progetto sono solo esempi e non funzionali.
+
+- **NON committare mai credenziali reali** nel repository
+- Usare variabili d'ambiente per tutte le configurazioni sensibili
+- Copiare il file `.env.example` in `.env` e inserire le proprie credenziali reali
+- Il file `.env` è già incluso nel `.gitignore` per prevenire commit accidentali
+
+### Configurazione Ambiente
+
+1. Copia il file di esempio:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Modifica `.env` con le tue credenziali reali:
+   ```env
+   APP_ADMIN_USER=tuo_username
+   APP_ADMIN_PASS=tua_password_sicura
+   DB_HOST=tuo_db_host
+   DB_PASSWORD=tua_password_db
+   # ... altre credenziali
+   ```
+
+3. Mai committare il file `.env` nel repository!
+
+---
+
 
 ## 1. Struttura Database
 
