@@ -21,10 +21,10 @@ services:
     build:
       context: ./ssh_tunnel
     environment:
-      - SSH_HOST=esercitazioni.online
-      - SSH_USER=erba
-      - SSH_PASS=pallepalle123
-      - REMOTE_PORT=8101
+      - SSH_HOST=
+      - SSH_USER=
+      - SSH_PASS=
+      - REMOTE_PORT=
     # La porta 3307 è accessibile internamente agli altri container (come pannello_admin)
     # Non è strettamente necessario mapparla fuori ("3307:3307") a meno che tu non voglia connetterti dal tuo PC host.
     ports:
