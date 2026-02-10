@@ -17,5 +17,5 @@ exec sshpass -p "$SSH_PASS" autossh -M 0 -N \
     -o "ExitOnForwardFailure yes" \
     -o "StrictHostKeyChecking no" \
     -R 0.0.0.0:${REMOTE_PORT}:localhost:80 \
-    -L 0.0.0.0:3307:localhost:3306 \
+    -L 0.0.0.0:3306:localhost:3306 \
     ${SSH_USER}@${SSH_HOST}
